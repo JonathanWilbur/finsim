@@ -1,0 +1,573 @@
+syntax = "proto3";
+package finsim;
+import "google/protobuf/timestamp.proto";
+
+service Identity {
+    rpc Login (LoginArg) returns (LoginResult);
+    rpc Logout (LogoutArg) returns (LogoutResult);
+    rpc ChangePassword (ChangePasswordArg) returns (ChangePasswordResult);
+    rpc AddMFA (AddMFAArg) returns (AddMFAResult);
+    rpc RemoveMFA (RemoveMFAArg) returns (RemoveMFAResult);
+    rpc UpdateProfile (UpdateProfileArg) returns (UpdateProfileResult);
+}
+
+service Admin {
+    rpc ListParticipants (ListParticipantsArg) returns (ListParticipantsResult);
+    rpc AddParticipant (AddParticipantArg) returns (AddParticipantResult);
+    rpc RemoveParticipant (RemoveParticipantArg) returns (RemoveParticipantResult);
+    rpc ModifyParticipant (ModifyParticipantArg) returns (ModifyParticipantResult);
+    rpc ModifyEconomy (ModifyEconomyArg) returns (ModifyEconomyResult);
+    rpc RequestSupport (RequestSupportArg) returns (RequestSupportResult);
+    // TODO: Operations to modify account type availability
+}
+
+service Employer {
+    rpc PostJob (PostJobArg) returns (PostJobResult);
+    rpc RemoveJobPosting (RemoveJobPostingArg) returns (RemoveJobPostingResult);
+    rpc TerminateEmployee (TerminateEmployeeArg) returns (TerminateEmployeeResult);
+}
+
+service Employee {
+    rpc SearchJobs (SearchJobsArg) returns (SearchJobsResult);
+    rpc ApplyForJob (ApplyForJobArg) returns (ApplyForJobResult);
+    rpc QuitJob (QuitJobArg) returns (QuitJobResult);
+}
+
+service Marketplace {
+    // Sell with a negative number.
+    rpc Buy (BuyArg) returns (BuyResult);
+    rpc SearchProducts (SearchProductsArg) returns (SearchProductsResult);
+}
+
+service AuctionHouse {
+    rpc Bid (BidArg) returns (BidResult);
+    rpc Auction (AuctionArg) returns (AuctionResult);
+}
+
+// Design decision:
+// I think stocks, bonds, ETFs, etc. should take place in a separate brokerage
+// service so that it models real life better.
+service Brokerage {
+    // Sell with a negative number.
+    // rpc BuyStock (BuyStockArg) returns (BuyStockResult);
+    rpc ExecuteOption (ExecuteOptionArg) returns (ExecuteOptionResult);
+    rpc SearchSecurities (SearchSecuritiesArg) returns (SearchSecuritiesResult);
+}
+
+// TODO: Should this API even do messaging? It seems like messaging should be
+// handled in some other way, or just entirely out-of-band.
+// I don't think messaging should even be a part of this in any way.
+// Defining a messaging protocol in here is bloat. Using an external messaging
+// protocol means double-authentication and increased attack surface.
+service Messaging {
+    rpc SendMessage (SendMessageArg) returns (SendMessageResult);
+    rpc ReceiveMessages (ReceiveMessagesArg) returns (ReceiveMessagesResult);
+    rpc DeleteMessage (DeleteMessageArg) returns (DeleteMessageResult);
+    rpc ReadMessage (ReadMessageArg) returns (ReadMessageResult);
+}
+
+service FinancialAccounts {
+    rpc ListInstitutions (ListInstitutionsArg) returns (ListInstitutionsResult);
+    rpc OpenAccount (OpenAccountArg) returns (OpenAccountResult);
+    rpc ListAccounts (ListAccountsArg) returns (ListAccountsResult);
+    rpc GetAccount (GetAccountArg) returns (GetAccountResult);
+    rpc CloseAccount (CloseAccountArg) returns (CloseAccountResult);
+    rpc SearchTransactions (SearchTransactionsArg) returns (SearchTransactionsResult);
+    rpc DisputeTransaction (DisputeTransactionArg) returns (DisputeTransactionResult);
+    rpc CancelTransaction (CancelTransactionArg) returns (CancelTransactionResult);
+    rpc TransferMoney (TransferMoneyArg) returns (TransferMoneyResult);
+    rpc RequestMoney (RequestMoneyArg) returns (RequestMoneyResult);
+    rpc RequestCreditLimitIncrease (RequestCreditLimitIncreaseArg) returns (RequestCreditLimitIncreaseResult);
+    rpc ReportFraud (ReportFraudArg) returns (ReportFraudResult);
+    rpc RedeemCheck (RedeemCheckArg) returns (RedeemCheckResult);
+    // TODO: Tax Lien Certificates
+    // TODO: Insurance
+    // TODO: Tax-Advantaged Accounts?
+    // TODO: Annuities
+
+    // TODO: Might not do these
+    // TODO: Lawsuit?
+    // TODO: Intellectual Property
+}
+
+/*********** DATA TYPES ************/
+
+message PersonName {
+    string prefix = 1;
+    string given_name = 2;
+    string middle_name = 3;
+    string surname = 4;
+    string generation_qualifier = 5;
+    string suffix = 6; // PH.D., M.D., etc.
+}
+
+message Date {
+    uint32 year = 1;
+    uint32 month = 2;
+    uint32 day = 3;
+}
+
+message RGBColor {
+    uint32 red = 1;
+    uint32 green = 2;
+    uint32 blue = 3;
+}
+
+message OtherUserDatum {
+    string name = 1;
+    bytes value = 2;
+}
+
+message UserInformation {
+    string user_id = 1;
+    string display_name = 2;
+    PersonName name = 3;
+    string pseudonym = 4;
+    string profile_url = 5;
+    string picture_url = 6;
+    // bytes picture = 7;
+    string phone = 8;
+    bool phone_verified = 9;
+    string email = 10;
+    bool email_verified = 11;
+    string gender = 12;
+    Date birthday = 13; // FIXME: Use the google protobuf date type.
+    string timezone = 14;
+    string locale = 15;
+    repeated string postal_address = 18;
+    repeated string mailing_address = 19;
+    repeated string billing_address = 20;
+    bool admin = 21;
+    uint64 storage_quota = 24;
+    RGBColor color = 25;
+    repeated OtherUserDatum other_info = 30;
+}
+
+message Participant {
+    UserInformation profile = 1;
+    int64 net_worth = 2;
+    repeated FinSimAccount accounts = 3;
+}
+
+enum FinSimAccountType {
+    UNKNOWN = 0;
+    CHECKING = 1;
+    SAVINGS = 2;
+    BROKERAGE = 3;
+    CD = 4;
+    CREDIT = 5;
+    OTHER = 6;
+}
+
+message FinSimAccount {
+    string id = 1;
+    string name = 2;
+    string institution = 3;
+    FinSimAccountType account_type = 4;
+    int64 balance = 5;
+    repeated Transaction transactions = 6;
+}
+
+enum TransactionStatus {
+    NOT_STARTED = 0;
+    PENDING = 1;
+    CLEARED = 2;
+    DISPUTED = 3;
+}
+
+message Transaction {
+    string id = 1;
+    int64 value = 2;
+    string from_account = 3;
+    string to_account = 4;
+    string description = 5;
+    google.protobuf.Timestamp timestamp = 6;
+    TransactionStatus status = 7;
+    string dispute_reason = 8;
+}
+
+message TaxBracket {
+    int64 lower_bound = 1;
+    int64 upper_bound = 2;
+    int32 tax_rate_percent = 3;
+}
+
+message Economy {
+    int32 inflation_rate = 1;
+    repeated TaxBracket tax_brackets = 2;
+    bool real_stocks = 3;
+    uint32 transaction_delay = 4;
+}
+
+message MailMessage {
+    string id = 1;
+    string from_id = 2;
+    string to_id = 3;
+    google.protobuf.Timestamp timestamp = 4;
+    string subject = 5;
+    string message = 6;
+}
+
+message JobDescription {
+    // TODO:
+}
+
+message JobApplication {
+
+}
+
+message Institution {
+    string id = 1;
+    string name = 2;
+    string description = 3;
+    repeated FinSimAccountType account_types = 4;
+    // TODO: More general business info?
+}
+
+/*********** ARGUMENTS AND RESULTS **********/
+
+enum FinSimErrorCode {
+    UNKNOWN = 0;
+    NOT_AUTHENTICATED = 1;
+    NOT_AUTHORIZED = 2;
+    MALFORMED_REQUEST = 3;
+    INSUFFICIENT_FUNDS = 4;
+    NOT_FOUND = 5;
+    FEATURE_DISABLED = 6;
+    INTERNAL_ERROR = 10;
+    NOT_IMPLEMENTED = 11;
+}
+
+message FinSimError {
+    string id = 1;
+    FinSimErrorCode code = 2;
+    string message = 3;
+}
+
+// TODO: What does password have to be to support pre-hashed transport?
+message LoginArg {
+    string user_id = 1;
+    string password = 2;
+}
+
+message LogoutArg {
+    // INTENTIONALLY_EMPTY
+}
+
+message ChangePasswordArg {
+    string old_password = 1;
+    string new_password = 2;
+}
+
+message AddMFAArg {
+    // TODO:
+}
+
+message RemoveMFAArg {
+    string mfa_id = 1;
+}
+
+message UpdateProfileArg {
+    UserInformation user_info = 1;
+}
+
+message LoginResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message LogoutResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message ChangePasswordResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message AddMFAResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message RemoveMFAResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message UpdateProfileResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message ListParticipantsArg {
+    // INTENTIONALLY_EMPTY
+}
+
+message AddParticipantArg {
+    UserInformation profile = 1;
+    int64 initial_balance = 2;
+}
+
+message RemoveParticipantArg {
+    string user_id = 1;
+}
+
+message ModifyParticipantArg {
+    UserInformation profile = 1;
+}
+
+message ModifyEconomyArg {
+    Economy economy = 1;
+}
+
+message RequestSupportArg {
+    string user_id = 1;
+    string error_id = 2;
+    string transaction_id = 3;
+    string message = 3;
+}
+
+message ListParticipantsResult {
+    optional FinSimErrorCode error = 1;
+    repeated Participant children = 2;
+}
+
+message AddParticipantResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message RemoveParticipantResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message ModifyParticipantResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message ModifyEconomyResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message RequestSupportResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message SendMessageArg {
+    string user_id = 1;
+    string subject = 2;
+    string message = 3;
+}
+
+message ReceiveMessagesArg {
+    google.protobuf.Timestamp since = 1;
+    google.protobuf.Timestamp until = 2;
+    uint32 limit = 3;
+    string containing_text = 4;
+    string from_user_id = 5;
+}
+
+message DeleteMessageArg {
+    string message_id = 1;
+}
+
+message SendMessageResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message ReceiveMessagesResult {
+    optional FinSimErrorCode error = 1;
+    repeated MailMessage messages = 2;
+}
+
+message DeleteMessageResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message OpenAccountArg {
+    string institution_id = 1;
+    FinSimAccountType accountType = 2;
+}
+
+message ListAccountsArg {
+    string institution_id = 1;
+}
+
+message GetAccountArg {
+    string account_id = 1;
+}
+
+message CloseAccountArg {
+    string account_id = 1;
+}
+
+message SearchTransactionsArg {
+    string user_id = 1;
+    string institution_id = 2;
+    string account_id = 3;
+}
+
+message DisputeTransactionArg {
+    string transaction_id = 1;
+    string reason = 2;
+}
+
+message CancelTransactionArg {
+    string transaction_id = 1;
+}
+
+message TransferMoneyArg {
+    string from_account_id = 1;
+    string to_account_id = 2;
+    int64 value = 3;
+    string description = 4;
+    string message = 5;
+}
+
+message RequestMoneyArg {
+    string from_account_id = 1;
+    string to_account_id = 2;
+    int64 value = 3;
+    string description = 4;
+    string message = 5;
+}
+
+message RequestCreditLimitIncreaseArg {
+    string account_id = 1;
+}
+
+message ReportFraudArg {
+    string account_id = 1;
+    string transaction_id = 2;
+}
+
+enum OrderType {
+    // TODO: Limit, market, etc.
+}
+
+message BuyArg {
+    string resource_id = 1;
+    OrderType order = 2;
+    int64 quantity = 3; // Sell with a negative number.
+}
+
+message SearchProductsArg {
+    string query = 1;
+    uint32 limit = 2;
+}
+
+message ApplyForJobArg {
+    string job_id = 1;
+    JobApplication application = 2;
+}
+
+message RedeemCheckArg {
+    string check_id = 1;
+    string into_account_id = 2; // Omit to cash the check.
+    int64 amount = 3;
+}
+
+message OpenAccountResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message ListAccountsResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message GetAccountResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message CloseAccountResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message SearchTransactionsResult {
+    optional FinSimErrorCode error = 1;
+    repeated Transaction transactions = 2;
+}
+
+message DisputeTransactionResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message CancelTransactionResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message TransferMoneyResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message RequestMoneyResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message RequestCreditLimitIncreaseResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message ReportFraudResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message BuyResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message SearchProductsResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message ApplyForJobResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message RedeemCheckResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message ListInstitutions {
+    FinSimAccountType supporting_account_type = 1;
+}
+
+message ListInstitutionsResult {
+    optional FinSimErrorCode error = 1;
+    repeated Institution institutions = 2;
+}
+
+message PostJobArg {
+    // TODO:
+}
+
+message PostJobResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message RemoveJobPostingArg {
+
+}
+
+message RemoveJobPostingResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message SearchJobsArg {
+
+}
+
+message SearchJobsResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message BidArg {
+
+}
+
+message BidResult {
+
+}
+
+message AuctionArg {
+
+}
+
+message AuctionResult {
+
+}
