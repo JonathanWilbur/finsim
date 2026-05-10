@@ -1,5 +1,8 @@
 syntax = "proto3";
 package finsim;
+
+option go_package = "finsim/api/finsimpb;finsimpb";
+
 import "google/protobuf/timestamp.proto";
 
 service Identity {
@@ -150,7 +153,7 @@ message Participant {
 }
 
 enum FinSimAccountType {
-    UNKNOWN = 0;
+    FIN_SIM_ACCOUNT_TYPE_UNKNOWN = 0;
     CHECKING = 1;
     SAVINGS = 2;
     BROKERAGE = 3;
@@ -227,7 +230,7 @@ message Institution {
 /*********** ARGUMENTS AND RESULTS **********/
 
 enum FinSimErrorCode {
-    UNKNOWN = 0;
+    FIN_SIM_ERROR_CODE_UNKNOWN = 0;
     NOT_AUTHENTICATED = 1;
     NOT_AUTHORIZED = 2;
     MALFORMED_REQUEST = 3;
@@ -320,7 +323,7 @@ message RequestSupportArg {
     string user_id = 1;
     string error_id = 2;
     string transaction_id = 3;
-    string message = 3;
+    string message = 4;
 }
 
 message ListParticipantsResult {
@@ -437,6 +440,7 @@ message ReportFraudArg {
 }
 
 enum OrderType {
+    ORDER_TYPE_UNSPECIFIED = 0;
     // TODO: Limit, market, etc.
 }
 
@@ -523,7 +527,7 @@ message RedeemCheckResult {
     optional FinSimErrorCode error = 1;
 }
 
-message ListInstitutions {
+message ListInstitutionsArg {
     FinSimAccountType supporting_account_type = 1;
 }
 
@@ -570,4 +574,40 @@ message AuctionArg {
 
 message AuctionResult {
 
+}
+
+message TerminateEmployeeArg {
+}
+
+message TerminateEmployeeResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message QuitJobArg {
+}
+
+message QuitJobResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message ExecuteOptionArg {
+}
+
+message ExecuteOptionResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message SearchSecuritiesArg {
+}
+
+message SearchSecuritiesResult {
+    optional FinSimErrorCode error = 1;
+}
+
+message ReadMessageArg {
+    string message_id = 1;
+}
+
+message ReadMessageResult {
+    optional FinSimErrorCode error = 1;
 }
